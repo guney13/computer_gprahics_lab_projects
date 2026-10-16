@@ -2,26 +2,45 @@
 // Fill in the TODOs. main.js runs selfTest() on load: make all seven lines print ✓.
 // Column-major: m[3*col + row], the same layout WGSL expects.
 
+// we represent matricies as [col1, col2, col3]
+
 export const identity = () => [1, 0, 0, 0, 1, 0, 0, 0, 1];
 
 export function multiply(a, b) {
   // TODO 1: out[3*c + r] = Σ_k  a[3*k + r] · b[3*c + k]
-  //         (column-major, so the loops look "transposed" — write them carefully)
-  return identity();
+  const out = new Array(9);
+
+  for (let r = 0; r < 3 ; r++) {
+    for (let c = 0; c < 3; c++) {
+      let sum = 0;
+      for (let k = 0; k < 3; k++) {
+        sum += a[3 * k + r] * b[3 * c + k];
+      } 
+
+      out[3 * c + r] = sum;
+    }
+  }
+
+  return out;
 }
 
 export const mulAll = (...ms) => ms.reduce(multiply);
 
 // TODO 2: the third column holds the translation
-export const translate = (x, y) => identity();
+export const translate = (x, y) => [1, 0, 0, 0, 1, 0, x, y, 1];
 
 // TODO 3
-export const scale = (x, y = x) => identity();
+export const scale = (x, y = x) => [x, 0, 0, 0, y, 0, 0, 0, 1];
 
 export function rotate(radians) {
   // TODO 4: the columns are where x̂ and ŷ land.
   //         Check your signs with the self-test: rotate(90°) must send (1,0) to (0,1).
-  return identity();
+
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const out = [cos, sin, 0, -sin, cos, 0, 0, 0, 1];
+
+  return out;
 }
 
 export function apply(m, x, y) {           // transform the point (x, y)
@@ -33,7 +52,36 @@ export function apply(m, x, y) {           // transform the point (x, y)
 //         For the matrices in this lab, (T·R·S)⁻¹ = S⁻¹·R⁻¹·T⁻¹ also works — but
 //         picking below needs the inverse of whole world matrices, so write the general one.
 export function invert(m) {
-  return identity();
+  // compute det of mat
+  const a = m[0], b = m[3], c = m[6];
+  const d = m[1], e = m[4], f = m[7];
+  const g = m[2], h = m[5], i = m[8];
+
+  const c00 = + (e * i - f * h);
+  const c01 = - (d * i - f * g);
+  const c02 = + (d * h - e * g);
+  
+  const c10 = - (b * i - c * h);
+  const c11 = + (a * i - c * g);
+  const c12 = - (a * h - b * g);
+
+  const c20 = + (b * f - c * e);
+  const c21 = - (a * f - c * d);
+  const c22 = + (a * e - b * d);
+
+  const det = (a * c00) + (b * c01) + (c * c02);
+
+  if (Math.abs(det) < 1e-6) return null;
+
+  /*
+    [c00 / det, c10 / det, c20 / det,
+      c01 / det, c11 / det, c21 / det, 
+      c02 / det, c12 / det, c22 / det]
+  */
+
+  return [c00 / det, c01 / det, c02 / det,
+    c10 / det, c11 / det, c12 / det, 
+    c20 / det, c21 / det, c22 / det];
 }
 
 // a mat3x3f in a uniform buffer is three vec4 columns: 48 bytes

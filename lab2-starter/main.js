@@ -1,7 +1,17 @@
 // CS405 · Lab 2 — three squares in a hierarchy, driven by 3×3 matrices (starter)
 // The WebGPU setup is done. Your work is in mat3.js and in the marked blocks below.
 // Step 6 (picking) works as soon as invert() in mat3.js is right. Step 7 (stretch) is TODO 7.
-import { identity, multiply as mul, translate, rotate, scale, pad3x3, invert, apply, selfTest } from './mat3.js';
+import { 
+  identity, 
+  multiply as mul, 
+  translate, 
+  rotate, 
+  scale, 
+  pad3x3, 
+  invert, 
+  apply, 
+  selfTest 
+} from './mat3.js';
 
 selfTest();
 
@@ -26,7 +36,11 @@ struct U { m: mat3x3f, colour: vec4f };
   return vec4f(p.xy, 0.0, 1.0);
 }
 
-@fragment fn fs() -> @location(0) vec4f { return u.colour; }` });
+@fragment fn fs() -> @location(0) vec4f { 
+  return u.colour; 
+}
+
+`});
 
 const pipeline = device.createRenderPipeline({
   layout: 'auto',
@@ -63,6 +77,9 @@ canvas.addEventListener('pointermove', e => {
 canvas.addEventListener('pointerleave', () => { mouse = null; });
 window.addEventListener('keydown', e => { if (e.key === 'i' || e.key === 'I') reach = !reach; });
 
+
+const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
+
 // ---- step 7: analytic two-link IK (Week 2, Thursday). Links point along local +y,
 //      so an angle θ here is the usual angle (from +x) minus 90°.
 const L1 = 0.30, L2 = 0.22;                  // arm joint → hand joint, hand joint → fingertip
@@ -71,7 +88,13 @@ function ik2(x, y) {
   //   c2 = (x² + y² − L1² − L2²) / (2 L1 L2), clamp it to [−1, 1], θ2 = −acos(c2)
   //   θ1 = atan2(y, x) − atan2(L2 sin θ2, L1 + L2 cos θ2)
   // Return [θ1 − π/2, θ2]: our links point along +y, not +x.
-  return [0, 0];
+
+  const raw_d2 = (x ** 2 + y ** 2 - (L1 ** 2) - (L2 ** 2)) / (2 * L1 * L2);
+  const d2 = clamp(raw_d2, -1, 1);
+  const theta2 = - Math.acos(d2);
+  const theta1 = Math.atan2(y, x) - Math.atan2(L2 * Math.sin(theta2), L1 + L2 * Math.cos(theta2));
+  
+  return [theta1 - (Math.PI / 2), theta2];
 }
 
 const t0 = performance.now();
@@ -103,8 +126,8 @@ function frame() {
   // world = parent's world · own local
   // TODO 5: world = parent's world · own local
   const baseWorld = baseLocal;
-  const armWorld  = baseLocal;   // <-- wrong: the arm ignores the base
-  const handWorld = baseLocal;   // <-- wrong: the hand ignores both
+  const armWorld  = mul(baseLocal, armLocal);
+  const handWorld = mul(armWorld, handLocal);
 
   // the boxes themselves: a unit square scaled and pushed up so the joint is at its base
   const worlds = [
